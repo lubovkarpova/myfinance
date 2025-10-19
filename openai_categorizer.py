@@ -95,13 +95,14 @@ Return ONLY JSON, no additional text.
 """
             
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "You are a financial transaction analysis assistant. Respond only in JSON format."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
-                max_tokens=500
+                max_tokens=500,
+                reasoning_effort="low"  # Быстрее для простых задач категоризации
             )
             
             # Извлекаем ответ
