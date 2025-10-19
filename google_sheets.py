@@ -5,6 +5,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import os
+import json
 
 
 class GoogleSheetsManager:
@@ -30,9 +31,20 @@ class GoogleSheetsManager:
                 'https://www.googleapis.com/auth/drive'
             ]
             
-            credentials = ServiceAccountCredentials.from_json_keyfile_name(
-                self.credentials_file, scope
-            )
+            # Проверяем, есть ли JSON в переменной окружения (для Railway)
+            google_creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+            
+            if google_creds_json:
+                # Используем credentials из переменной окружения
+                creds_dict = json.loads(google_creds_json)
+                credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+                    creds_dict, scope
+                )
+            else:
+                # Используем файл (для локальной разработки)
+                credentials = ServiceAccountCredentials.from_json_keyfile_name(
+                    self.credentials_file, scope
+                )
             
             self.client = gspread.authorize(credentials)
             
