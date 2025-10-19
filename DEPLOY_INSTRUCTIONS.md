@@ -34,7 +34,7 @@ Click on your project → **Variables** tab → Add these variables:
 
 **TELEGRAM_BOT_TOKEN**
 ```
-8496780942:AAE4mWrg-EVbiHrdwvJcQk6Q9BDeqdNTWW0
+your_telegram_bot_token_here
 ```
 
 **OPENAI_API_KEY**
