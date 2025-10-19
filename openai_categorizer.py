@@ -18,31 +18,40 @@ class TransactionCategorizer:
         
         # Предопределенные категории
         self.categories = {
-            'Расходы': [
-                'Продукты',
-                'Транспорт',
-                'Жилье',
-                'Коммунальные услуги',
-                'Связь и интернет',
-                'Здоровье и медицина',
-                'Одежда и обувь',
-                'Развлечения',
-                'Рестораны и кафе',
-                'Образование',
-                'Подарки',
-                'Спорт и фитнес',
-                'Красота',
-                'Прочее'
+            'Expense': [
+                'Groceries',
+                'Transport',
+                'Housing',
+                'Utilities',
+                'Communication',
+                'Health & Medical',
+                'Clothing',
+                'Entertainment',
+                'Restaurants & Cafes',
+                'Education',
+                'Gifts',
+                'Sports & Fitness',
+                'Beauty',
+                'Other'
             ],
-            'Доходы': [
-                'Зарплата',
-                'Фриланс',
-                'Подработка',
-                'Инвестиции',
-                'Возврат долга',
-                'Подарок',
-                'Прочее'
+            'Income': [
+                'Salary',
+                'Freelance',
+                'Side Job',
+                'Investment',
+                'Debt Return',
+                'Gift',
+                'Other'
             ]
+        }
+        
+        # Курсы валют к ILS (примерные, можно обновлять)
+        self.exchange_rates = {
+            'ILS': 1.0,
+            'USD': 3.7,
+            'EUR': 4.0,
+            'RUB': 0.04,
+            'GBP': 4.7
         }
     
     def parse_transaction(self, text):
@@ -53,40 +62,42 @@ class TransactionCategorizer:
             text: текст сообщения от пользователя
             
         Returns:
-            dict с полями: type, amount, category, description
+            dict с полями: type, amount, currency, category, description
         """
         try:
             # Формируем промпт для OpenAI
             prompt = f"""
-Ты - ассистент для учета финансов. Проанализируй следующее сообщение о финансовой транзакции и извлеки из него информацию.
+You are a financial tracking assistant. Analyze the following transaction message and extract information.
 
-Сообщение: "{text}"
+Message: "{text}"
 
-Верни результат СТРОГО в формате JSON со следующими полями:
-- type: "Расход" или "Доход"
-- amount: числовое значение суммы (только число, без валюты)
-- category: одна из категорий ниже
-- description: краткое описание транзакции
+Return result STRICTLY in JSON format with the following fields:
+- type: "Expense" or "Income"
+- amount: numeric value (number only, without currency symbol)
+- currency: currency code (ILS, USD, EUR, RUB, GBP, etc.) - determine from context or default to ILS
+- category: one of the categories below
+- description: brief description of the transaction
 
-Категории расходов: {', '.join(self.categories['Расходы'])}
-Категории доходов: {', '.join(self.categories['Доходы'])}
+Expense categories: {', '.join(self.categories['Expense'])}
+Income categories: {', '.join(self.categories['Income'])}
 
-Если сумма не указана явно, попробуй её найти в тексте. Если не можешь определить - поставь 0.
-Если тип транзакции не указан явно, определи по контексту (по умолчанию - Расход).
+If amount is not explicitly stated, try to find it in the text. If you can't determine - set 0.
+If transaction type is not explicit, determine from context (default - Expense).
+Detect currency from symbols (₪/$//€/£/руб) or words (shekel/dollar/euro/ruble), default to ILS if not specified.
 
-Примеры:
-- "Купил хлеб за 100 рублей" -> {{"type": "Расход", "amount": 100, "category": "Продукты", "description": "Хлеб"}}
-- "Потратил 500 на такси" -> {{"type": "Расход", "amount": 500, "category": "Транспорт", "description": "Такси"}}
-- "Получил зарплату 50000" -> {{"type": "Доход", "amount": 50000, "category": "Зарплата", "description": "Зарплата"}}
-- "+5000 фриланс" -> {{"type": "Доход", "amount": 5000, "category": "Фриланс", "description": "Фриланс"}}
+Examples:
+- "Купил хлеб за 100 рублей" -> {{"type": "Expense", "amount": 100, "currency": "RUB", "category": "Groceries", "description": "Bread"}}
+- "Spent 50$ on taxi" -> {{"type": "Expense", "amount": 50, "currency": "USD", "category": "Transport", "description": "Taxi"}}
+- "Got salary 5000₪" -> {{"type": "Income", "amount": 5000, "currency": "ILS", "category": "Salary", "description": "Salary"}}
+- "+200 freelance" -> {{"type": "Income", "amount": 200, "currency": "ILS", "category": "Freelance", "description": "Freelance"}}
 
-Верни только JSON, без дополнительного текста.
+Return ONLY JSON, no additional text.
 """
             
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "Ты - ассистент для анализа финансовых транзакций. Отвечай только в формате JSON."},
+                    {"role": "system", "content": "You are a financial transaction analysis assistant. Respond only in JSON format."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
@@ -104,8 +115,8 @@ class TransactionCategorizer:
             result = json.loads(result_text)
             
             # Валидация результата
-            if 'type' not in result or result['type'] not in ['Расход', 'Доход']:
-                result['type'] = 'Расход'
+            if 'type' not in result or result['type'] not in ['Expense', 'Income']:
+                result['type'] = 'Expense'
             
             if 'amount' not in result:
                 result['amount'] = 0
@@ -116,11 +127,19 @@ class TransactionCategorizer:
                 except:
                     result['amount'] = 0
             
+            if 'currency' not in result:
+                result['currency'] = 'ILS'
+            else:
+                result['currency'] = result['currency'].upper()
+            
             if 'category' not in result:
-                result['category'] = 'Прочее'
+                result['category'] = 'Other'
             
             if 'description' not in result:
                 result['description'] = text[:50]  # Первые 50 символов
+            
+            # Добавляем конвертацию в ILS
+            result['amount_ils'] = self.convert_to_ils(result['amount'], result['currency'])
             
             return result
             
@@ -142,13 +161,43 @@ class TransactionCategorizer:
         amount = float(numbers[0]) if numbers else 0
         
         # Определяем тип по ключевым словам
-        income_keywords = ['получил', 'зарплата', 'доход', 'заработал', '+']
-        transaction_type = 'Доход' if any(keyword in text.lower() for keyword in income_keywords) else 'Расход'
+        income_keywords = ['получил', 'зарплата', 'доход', 'заработал', '+', 'income', 'salary', 'earned']
+        transaction_type = 'Income' if any(keyword in text.lower() for keyword in income_keywords) else 'Expense'
+        
+        # Определяем валюту по символам
+        currency = 'ILS'
+        if '$' in text or 'usd' in text.lower() or 'dollar' in text.lower():
+            currency = 'USD'
+        elif '€' in text or 'eur' in text.lower() or 'euro' in text.lower():
+            currency = 'EUR'
+        elif '₽' in text or 'руб' in text.lower() or 'rub' in text.lower():
+            currency = 'RUB'
+        elif '£' in text or 'gbp' in text.lower() or 'pound' in text.lower():
+            currency = 'GBP'
+        
+        amount_ils = self.convert_to_ils(amount, currency)
         
         return {
             'type': transaction_type,
             'amount': amount,
-            'category': 'Прочее',
-            'description': text[:100]
+            'currency': currency,
+            'category': 'Other',
+            'description': text[:100],
+            'amount_ils': amount_ils
         }
+    
+    def convert_to_ils(self, amount, currency):
+        """
+        Конвертирует сумму в шекели
+        
+        Args:
+            amount: сумма
+            currency: валюта
+            
+        Returns:
+            сумма в шекелях
+        """
+        currency = currency.upper()
+        rate = self.exchange_rates.get(currency, 1.0)
+        return round(amount * rate, 2)
 

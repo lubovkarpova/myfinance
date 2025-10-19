@@ -65,18 +65,19 @@ class GoogleSheetsManager:
             first_row = self.worksheet.row_values(1)
             if not first_row or len(first_row) == 0:
                 headers = [
-                    'Дата',
-                    'Время', 
-                    'Тип',
-                    'Сумма',
-                    'Категория',
-                    'Описание',
-                    'Пользователь',
+                    'Date',
+                    'Type',
+                    'Description',
+                    'Category',
+                    'Amount',
+                    'Currency',
+                    'Amount in ILS',
+                    'User',
                     'User ID'
                 ]
-                self.worksheet.update('A1:H1', [headers])
+                self.worksheet.update('A1:I1', [headers])
                 # Форматируем заголовки
-                self.worksheet.format('A1:H1', {
+                self.worksheet.format('A1:I1', {
                     'textFormat': {'bold': True},
                     'backgroundColor': {'red': 0.9, 'green': 0.9, 'blue': 0.9}
                 })
@@ -89,23 +90,25 @@ class GoogleSheetsManager:
         
         Args:
             transaction_data: словарь с данными транзакции
-                - date: дата
-                - time: время
-                - type: тип (Расход/Доход)
-                - amount: сумма
-                - category: категория
+                - date: дата (DD/MM/YY)
+                - type: тип (Income/Expense)
                 - description: описание
+                - category: категория
+                - amount: сумма
+                - currency: валюта
+                - amount_ils: сумма в шекелях
                 - username: имя пользователя
                 - user_id: ID пользователя
         """
         try:
             row = [
                 transaction_data.get('date', ''),
-                transaction_data.get('time', ''),
                 transaction_data.get('type', ''),
-                transaction_data.get('amount', ''),
-                transaction_data.get('category', ''),
                 transaction_data.get('description', ''),
+                transaction_data.get('category', ''),
+                transaction_data.get('amount', ''),
+                transaction_data.get('currency', ''),
+                transaction_data.get('amount_ils', ''),
                 transaction_data.get('username', ''),
                 transaction_data.get('user_id', '')
             ]
@@ -129,11 +132,12 @@ class GoogleSheetsManager:
             for transaction in transactions:
                 row = [
                     transaction.get('date', ''),
-                    transaction.get('time', ''),
                     transaction.get('type', ''),
-                    transaction.get('amount', ''),
-                    transaction.get('category', ''),
                     transaction.get('description', ''),
+                    transaction.get('category', ''),
+                    transaction.get('amount', ''),
+                    transaction.get('currency', ''),
+                    transaction.get('amount_ils', ''),
                     transaction.get('username', ''),
                     transaction.get('user_id', '')
                 ]

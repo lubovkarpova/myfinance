@@ -149,12 +149,13 @@ async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Формируем данные транзакции
             transaction = {
-                'date': timestamp.strftime('%Y-%m-%d'),
-                'time': timestamp.strftime('%H:%M:%S'),
+                'date': timestamp.strftime('%d/%m/%y'),
                 'type': parsed['type'],
-                'amount': parsed['amount'],
-                'category': parsed['category'],
                 'description': parsed['description'],
+                'category': parsed['category'],
+                'amount': parsed['amount'],
+                'currency': parsed.get('currency', 'ILS'),
+                'amount_ils': parsed.get('amount_ils', parsed['amount']),
                 'username': user.first_name or user.username or 'Unknown',
                 'user_id': str(user.id)
             }
