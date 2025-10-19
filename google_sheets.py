@@ -72,12 +72,11 @@ class GoogleSheetsManager:
                     'Amount',
                     'Currency',
                     'Amount in ILS',
-                    'User',
-                    'User ID'
+                    'User'
                 ]
-                self.worksheet.update('A1:I1', [headers])
+                self.worksheet.update('A1:H1', [headers])
                 # Форматируем заголовки
-                self.worksheet.format('A1:I1', {
+                self.worksheet.format('A1:H1', {
                     'textFormat': {'bold': True},
                     'backgroundColor': {'red': 0.9, 'green': 0.9, 'blue': 0.9}
                 })
@@ -98,22 +97,22 @@ class GoogleSheetsManager:
                 - currency: валюта
                 - amount_ils: сумма в шекелях
                 - username: имя пользователя
-                - user_id: ID пользователя
         """
         try:
+            # Форматируем данные для корректного отображения в Google Sheets
             row = [
-                transaction_data.get('date', ''),
+                str(transaction_data.get('date', '')),  # Дата как текст
                 transaction_data.get('type', ''),
                 transaction_data.get('description', ''),
                 transaction_data.get('category', ''),
-                transaction_data.get('amount', ''),
+                transaction_data.get('amount', ''),  # Число
                 transaction_data.get('currency', ''),
-                transaction_data.get('amount_ils', ''),
-                transaction_data.get('username', ''),
-                transaction_data.get('user_id', '')
+                transaction_data.get('amount_ils', ''),  # Число
+                transaction_data.get('username', '')
             ]
             
-            self.worksheet.append_row(row)
+            # Используем value_input_option='RAW' чтобы данные записывались как есть, без интерпретации
+            self.worksheet.append_row(row, value_input_option='RAW')
             return True
             
         except Exception as e:
@@ -130,21 +129,22 @@ class GoogleSheetsManager:
         try:
             rows = []
             for transaction in transactions:
+                # Форматируем данные для корректного отображения в Google Sheets
                 row = [
-                    transaction.get('date', ''),
+                    str(transaction.get('date', '')),  # Дата как текст
                     transaction.get('type', ''),
                     transaction.get('description', ''),
                     transaction.get('category', ''),
-                    transaction.get('amount', ''),
+                    transaction.get('amount', ''),  # Число
                     transaction.get('currency', ''),
-                    transaction.get('amount_ils', ''),
-                    transaction.get('username', ''),
-                    transaction.get('user_id', '')
+                    transaction.get('amount_ils', ''),  # Число
+                    transaction.get('username', '')
                 ]
                 rows.append(row)
             
             if rows:
-                self.worksheet.append_rows(rows)
+                # Используем value_input_option='RAW' чтобы данные записывались как есть, без интерпретации
+                self.worksheet.append_rows(rows, value_input_option='RAW')
                 return True
             
             return False

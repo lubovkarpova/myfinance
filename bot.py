@@ -32,23 +32,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
     user = update.effective_user
     welcome_message = f"""
-Привет, {user.first_name}! 👋
+Hey {user.first_name}! 👋
+I'm your money tracker bot. Just drop me messages like:
 
-Я бот для учета финансов. Просто отправляй мне свои траты и доходы в свободном формате, например:
-• "Купил продукты за 1500 рублей"
-• "Потратил 300 на кофе"
-• "Получил зарплату 50000"
-• "+5000 фриланс"
+"Bought groceries 1500₽"
+"300₽ on coffee"
+"Salary 50k"
+"+5k freelance"
 
-📝 Доступные команды:
-/start - Показать это сообщение
-/process - Обработать все накопленные сообщения и добавить в Google таблицу
-/clear - Очистить накопленные сообщения
-/table - Получить ссылку на Google таблицу
-/stats - Показать статистику накопленных сообщений
-/help - Помощь
+I'll stash them till you run /process.
 
-Все твои сообщения будут накапливаться, а когда ты напишешь /process, я обработаю их через AI, определю категории и добавлю в таблицу.
+🛠 Commands:
+/start – This intro
+/process – Parse all messages, send to Google Sheets
+/clear – Wipe the message buffer
+/table – Get your Sheets link
+/stats – See what's saved
+/help – Quick guide
 """
     await update.message.reply_text(welcome_message)
 
@@ -56,28 +56,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /help"""
     help_text = """
-🤖 Как пользоваться ботом:
+👾 How to use me:
 
-1️⃣ Отправляй сообщения о тратах и доходах в свободной форме
-2️⃣ Когда накопится несколько сообщений, используй /process
-3️⃣ Бот обработает их и добавит в Google таблицу
+Send spendings/incomes in plain text
+Run /process once you've sent a few
+I'll sort them and log everything to Google Sheets
 
-💡 Примеры сообщений:
-• "500 рублей на продукты"
-• "Купил кофе 200р"
-• "Потратил 1000 на такси"
-• "Зарплата 60000"
-• "+3000 фриланс"
+💬 Examples:
+"500₽ groceries"
+"Coffee 200"
+"Taxi 1k"
+"Salary 60k"
+"+3k freelance"
 
-📋 Команды:
-/start - Начать работу
-/process - Обработать накопленные сообщения
-/clear - Очистить буфер сообщений
-/table - Получить ссылку на таблицу
-/stats - Статистика накопленных сообщений
-/help - Эта помощь
+🧰 Commands:
+/start – Intro
+/process – Log stuff
+/clear – Clean up messages
+/table – Your Sheets link
+/stats – What's saved
+/help – You're here
 
-❓ Вопросы? Просто пиши свои траты, бот разберется!
+Got questions? Just text me what you spent. I got you.
 """
     await update.message.reply_text(help_text)
 
@@ -92,16 +92,16 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     messages_count = len(context.user_data['messages'])
     
     if messages_count == 0:
-        await update.message.reply_text("📭 У тебя пока нет накопленных сообщений.")
+        await update.message.reply_text("📭 Nothing saved yet.")
     else:
-        stats_text = f"📊 Статистика:\n\n"
-        stats_text += f"Накоплено сообщений: {messages_count}\n\n"
-        stats_text += "Последние сообщения:\n"
+        stats_text = f"📊 Stats:\n"
+        stats_text += f"Saved: {messages_count} messages\n\n"
+        stats_text += "Latest:\n"
         
         for i, msg in enumerate(context.user_data['messages'][-5:], 1):
             stats_text += f"{i}. {msg['text'][:50]}...\n"
         
-        stats_text += f"\n💡 Используй /process чтобы обработать их"
+        stats_text += f"\nRun /process to log them."
     
     await update.message.reply_text(stats_text)
 
@@ -111,18 +111,18 @@ async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'messages' in context.user_data:
         count = len(context.user_data['messages'])
         context.user_data['messages'] = []
-        await update.message.reply_text(f"🗑 Очищено {count} сообщений")
+        await update.message.reply_text(f"🧹 Cleared {count} messages.")
     else:
-        await update.message.reply_text("📭 Нет сообщений для очистки")
+        await update.message.reply_text("📭 Nothing to clear.")
 
 
 async def table_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отправляет ссылку на Google таблицу"""
     if sheets_manager and sheets_manager.spreadsheet:
         url = sheets_manager.get_spreadsheet_url()
-        await update.message.reply_text(f"📊 Твоя таблица:\n{url}")
+        await update.message.reply_text(f"📊 Your sheet:\n{url}")
     else:
-        await update.message.reply_text("❌ Не удалось получить ссылку на таблицу")
+        await update.message.reply_text("❌ Couldn't get the link. Try later.")
 
 
 async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -130,11 +130,11 @@ async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
     if 'messages' not in context.user_data or len(context.user_data['messages']) == 0:
-        await update.message.reply_text("📭 Нет сообщений для обработки. Сначала отправь несколько сообщений о тратах!")
+        await update.message.reply_text("📭 Nothing to process. Send something first.")
         return
     
     messages = context.user_data['messages']
-    await update.message.reply_text(f"⚙️ Обрабатываю {len(messages)} сообщений...\n\nЭто может занять некоторое время.")
+    await update.message.reply_text(f"⚙️ Processing {len(messages)} messages...\nGimme a sec.")
     
     try:
         # Обрабатываем каждое сообщение
@@ -149,15 +149,14 @@ async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Формируем данные транзакции
             transaction = {
-                'date': timestamp.strftime('%d/%m/%y'),
+                'date': timestamp.strftime('%d-%m-%y'),  # Используем дефисы вместо слэшей
                 'type': parsed['type'],
                 'description': parsed['description'],
                 'category': parsed['category'],
                 'amount': parsed['amount'],
                 'currency': parsed.get('currency', 'ILS'),
                 'amount_ils': parsed.get('amount_ils', parsed['amount']),
-                'username': user.first_name or user.username or 'Unknown',
-                'user_id': str(user.id)
+                'username': user.first_name or user.username or 'Unknown'
             }
             
             transactions.append(transaction)
@@ -167,18 +166,14 @@ async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Очищаем буфер сообщений
             context.user_data['messages'] = []
             
-            success_message = f"""
-✅ Успешно обработано и добавлено {len(transactions)} транзакций!
-
-📊 Посмотреть таблицу: /table
-"""
+            success_message = f"✅ Logged {len(transactions)} transactions!\n\n/table – See the sheet"
             await update.message.reply_text(success_message)
         else:
-            await update.message.reply_text("❌ Ошибка при добавлении в таблицу. Попробуй позже.")
+            await update.message.reply_text("❌ Couldn't add to the sheet. Try again later.")
     
     except Exception as e:
         logger.error(f"Ошибка при обработке сообщений: {e}")
-        await update.message.reply_text(f"❌ Произошла ошибка: {str(e)}")
+        await update.message.reply_text(f"❌ Something went wrong: {str(e)}")
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -199,8 +194,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Отправляем подтверждение
     count = len(context.user_data['messages'])
     await update.message.reply_text(
-        f"✅ Записал! Всего накоплено: {count} сообщений\n\n"
-        f"💡 Используй /process чтобы обработать все сообщения"
+        f"✅ Got it! {count} messages saved.\n\n"
+        f"💡 Run /process to log them."
     )
 
 
