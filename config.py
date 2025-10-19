@@ -28,8 +28,10 @@ def validate_config():
     if not OPENAI_API_KEY:
         errors.append("OPENAI_API_KEY не установлен")
     
-    if not os.path.exists(GOOGLE_CREDENTIALS_FILE):
-        errors.append(f"Файл credentials не найден: {GOOGLE_CREDENTIALS_FILE}")
+    # Проверяем Google credentials: либо файл, либо JSON в переменной окружения
+    google_creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+    if not google_creds_json and not os.path.exists(GOOGLE_CREDENTIALS_FILE):
+        errors.append(f"Google credentials не найдены: ни GOOGLE_CREDENTIALS_JSON, ни файл {GOOGLE_CREDENTIALS_FILE}")
     
     return errors
 
