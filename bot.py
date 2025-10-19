@@ -3,7 +3,7 @@
 """
 import logging
 from datetime import datetime
-from telegram import Update
+from telegram import Update, ReactionTypeEmoji
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -40,14 +40,11 @@ I'm your money tracker bot. Just drop me messages like:
 "Salary 50k"
 "+5k freelance"
 
-I'll stash them till you run /process.
+I'll parse them instantly and log to Google Sheets. You'll see ✅ when it's done.
 
 🛠 Commands:
 /start – This intro
-/process – Parse all messages, send to Google Sheets
-/clear – Wipe the message buffer
 /table – Get your Sheets link
-/stats – See what's saved
 /help – Quick guide
 """
     await update.message.reply_text(welcome_message)
@@ -58,9 +55,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = """
 👾 How to use me:
 
-Send spendings/incomes in plain text
-Run /process once you've sent a few
-I'll sort them and log everything to Google Sheets
+Just send me spendings/incomes in plain text.
+I'll instantly parse and log them to Google Sheets.
+Look for the ✅ reaction when it's logged.
 
 💬 Examples:
 "500₽ groceries"
@@ -71,13 +68,10 @@ I'll sort them and log everything to Google Sheets
 
 🧰 Commands:
 /start – Intro
-/process – Log stuff
-/clear – Clean up messages
 /table – Your Sheets link
-/stats – What's saved
 /help – You're here
 
-Got questions? Just text me what you spent. I got you.
+That's it. Just text me what you spent. I got you.
 """
     await update.message.reply_text(help_text)
 
@@ -177,26 +171,40 @@ async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик текстовых сообщений - накапливает их для последующей обработки"""
+    """Обработчик текстовых сообщений - мгновенная обработка и отправка в таблицу"""
     user = update.effective_user
     text = update.message.text
     
-    # Инициализируем список сообщений если его нет
-    if 'messages' not in context.user_data:
-        context.user_data['messages'] = []
+    try:
+        # Сразу обрабатываем через OpenAI
+        parsed = categorizer.parse_transaction(text)
+        
+        # Формируем данные транзакции
+        transaction = {
+            'date': datetime.now().strftime('%d-%m-%y'),
+            'type': parsed['type'],
+            'description': parsed['description'],
+            'category': parsed['category'],
+            'amount': parsed['amount'],
+            'currency': parsed.get('currency', 'ILS'),
+            'amount_ils': parsed.get('amount_ils', parsed['amount']),
+            'username': user.first_name or user.username or 'Unknown'
+        }
+        
+        # Сразу добавляем в Google Sheets
+        if sheets_manager.add_transaction(transaction):
+            # Молчаливое подтверждение - просто ставим реакцию
+            try:
+                await update.message.set_reaction(reaction=ReactionTypeEmoji(emoji="👍"))
+            except Exception as reaction_error:
+                # Игнорируем ошибки реакции, главное что транзакция записана
+                logger.debug(f"Не удалось поставить реакцию: {reaction_error}")
+        else:
+            await update.message.reply_text("❌ Error logging. Try again.")
     
-    # Добавляем сообщение в буфер
-    context.user_data['messages'].append({
-        'text': text,
-        'timestamp': datetime.now()
-    })
-    
-    # Отправляем подтверждение
-    count = len(context.user_data['messages'])
-    await update.message.reply_text(
-        f"✅ Got it! {count} messages saved.\n\n"
-        f"💡 Run /process to log them."
-    )
+    except Exception as e:
+        logger.error(f"Ошибка при обработке сообщения: {e}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -240,9 +248,10 @@ def main():
     # Регистрация обработчиков
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("table", table_command))
+    # Оставляем старые команды для обратной совместимости
     application.add_handler(CommandHandler("process", process_command))
     application.add_handler(CommandHandler("clear", clear_command))
-    application.add_handler(CommandHandler("table", table_command))
     application.add_handler(CommandHandler("stats", stats_command))
     
     # Обработчик текстовых сообщений
