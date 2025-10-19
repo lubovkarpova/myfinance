@@ -76,10 +76,16 @@ Return result STRICTLY in JSON format with the following fields:
 - amount: numeric value (number only, without currency symbol)
 - currency: currency code (ILS, USD, EUR, RUB, GBP, etc.) - determine from context or default to ILS
 - category: one of the categories below
-- description: brief description of the transaction
+- description: BRIEF description in ENGLISH (2-3 words max, just the essence - what was bought/earned, NOT the full original message)
 
 Expense categories: {', '.join(self.categories['Expense'])}
 Income categories: {', '.join(self.categories['Income'])}
+
+IMPORTANT for description:
+- Keep it SHORT (2-3 words maximum)
+- Always in ENGLISH (translate if needed)
+- Just the ESSENCE - what item/service, NOT the amount, NOT the full sentence
+- Examples: "Coffee" not "Bought coffee for 200", "Groceries" not "Spent on groceries", "Taxi ride" not "Потратил на такси"
 
 If amount is not explicitly stated, try to find it in the text. If you can't determine - set 0.
 If transaction type is not explicit, determine from context (default - Expense).
@@ -87,9 +93,11 @@ Detect currency from symbols (₪/$//€/£/руб) or words (shekel/dollar/euro
 
 Examples:
 - "Купил хлеб за 100 рублей" -> {{"type": "Expense", "amount": 100, "currency": "RUB", "category": "Groceries", "description": "Bread"}}
+- "Потратил 300 на кофе" -> {{"type": "Expense", "amount": 300, "currency": "RUB", "category": "Restaurants & Cafes", "description": "Coffee"}}
 - "Spent 50$ on taxi" -> {{"type": "Expense", "amount": 50, "currency": "USD", "category": "Transport", "description": "Taxi"}}
 - "Got salary 5000₪" -> {{"type": "Income", "amount": 5000, "currency": "ILS", "category": "Salary", "description": "Salary"}}
 - "+200 freelance" -> {{"type": "Income", "amount": 200, "currency": "ILS", "category": "Freelance", "description": "Freelance"}}
+- "Купил продукты в магазине 1500р" -> {{"type": "Expense", "amount": 1500, "currency": "RUB", "category": "Groceries", "description": "Groceries"}}
 
 Return ONLY JSON, no additional text.
 """
