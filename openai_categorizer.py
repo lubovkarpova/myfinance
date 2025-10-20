@@ -53,6 +53,43 @@ class TransactionCategorizer:
             'RUB': 0.04,
             'GBP': 4.7
         }
+        # Быстрые соответствия категорий (синонимы -> каноническая категория)
+        self.category_aliases = {
+            # Expense
+            'food': 'Groceries',
+            'supermarket': 'Groceries',
+            'market': 'Groceries',
+            'grocery': 'Groceries',
+            'taxi': 'Transport',
+            'uber': 'Transport',
+            'bus': 'Transport',
+            'metro': 'Transport',
+            'rent': 'Housing',
+            'electricity': 'Utilities',
+            'internet': 'Communication',
+            'phone': 'Communication',
+            'doctor': 'Health & Medical',
+            'pharmacy': 'Health & Medical',
+            'clothes': 'Clothing',
+            'movie': 'Entertainment',
+            'cinema': 'Entertainment',
+            'restaurant': 'Restaurants & Cafes',
+            'cafe': 'Restaurants & Cafes',
+            'coffee': 'Restaurants & Cafes',
+            'school': 'Education',
+            'gift': 'Gifts',
+            'gym': 'Sports & Fitness',
+            'fitness': 'Sports & Fitness',
+            'haircut': 'Beauty',
+            # Income
+            'salary': 'Salary',
+            'freelance': 'Freelance',
+            'bonus': 'Salary',
+            'tip': 'Other',
+            'investment': 'Investment',
+            'dividend': 'Investment',
+            'debt': 'Debt Return',
+        }
     
     def parse_transaction(self, text):
         """
@@ -146,6 +183,16 @@ Return ONLY JSON, no additional text.
             if 'description' not in result:
                 result['description'] = text[:50]  # Первые 50 символов
             
+            # Приводим категорию к допустимому значению
+            result['category'] = self._normalize_category(result.get('category', 'Other'))
+
+            # Санитизируем описание: убираем числа/валюты, делаем максимум 3 слова
+            result['description'] = self._sanitize_description(result.get('description', ''))
+
+            # Если описание не на английском, просим модель кратко перевести (без контекста)
+            if not self._is_ascii_english(result['description']):
+                result['description'] = self._force_brief_english(result['description'])
+            
             # Добавляем конвертацию в ILS
             result['amount_ils'] = self.convert_to_ils(result['amount'], result['currency'])
             
@@ -160,6 +207,74 @@ Return ONLY JSON, no additional text.
             print(f"Ошибка при обработке транзакции: {e}")
             return self._fallback_parse(text)
     
+    def _is_ascii_english(self, s: str) -> bool:
+        if not s:
+            return False
+        try:
+            s.encode('ascii')
+        except Exception:
+            return False
+        # простая эвристика: наличие хотя бы одной латинской буквы
+        return re.search(r'[A-Za-z]', s) is not None
+
+    def _sanitize_description(self, description: str) -> str:
+        if not description:
+            return ''
+        # убираем валютные символы и цифры
+        cleaned = re.sub(r'[\d\s]*(₪|\$|€|£|₽|руб|rur|usd|eur|ils|gbp)\b', '', description, flags=re.IGNORECASE)
+        cleaned = re.sub(r'[\d]+(?:[\.,]\d+)?', '', cleaned)
+        # убираем лишние знаки, приводим к словам
+        cleaned = re.sub(r'[^A-Za-z\s]', ' ', cleaned)
+        # сжимаем пробелы
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        # максимум 3 слова
+        words = cleaned.split(' ')
+        if len(words) > 3:
+            cleaned = ' '.join(words[:3])
+        # если стало пусто, вернём универсальное слово
+        return cleaned or 'Purchase'
+
+    def _normalize_category(self, category: str) -> str:
+        if not category:
+            return 'Other'
+        # точное совпадение
+        for group in ('Expense', 'Income'):
+            if category in self.categories[group]:
+                return category
+        key = category.lower().strip()
+        mapped = self.category_aliases.get(key)
+        if mapped:
+            return mapped
+        # простая попытка по ключевому слову
+        for k, v in self.category_aliases.items():
+            if k in key:
+                return v
+        return 'Other'
+
+    def _force_brief_english(self, description: str) -> str:
+        """Просим модель привести текст к 1-3 английским словам без чисел."""
+        try:
+            prompt = (
+                "Rewrite to 1-3 English words, nouns only, no numbers/currency, just the item/service name.\n"
+                f"Input: {description}\nOutput:"
+            )
+            resp = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You condense to 1-3 English words. No numbers, no currency, no verbs."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.0,
+                max_tokens=10,
+            )
+            out = resp.choices[0].message.content.strip()
+            out = re.sub(r'```[a-zA-Z]*', '', out)
+            out = out.replace('```', '').strip()
+            out = self._sanitize_description(out)
+            return out or 'Purchase'
+        except Exception:
+            return 'Purchase'
+
     def _fallback_parse(self, text):
         """
         Базовый парсинг без OpenAI (на случай ошибки)
@@ -190,7 +305,7 @@ Return ONLY JSON, no additional text.
             'amount': amount,
             'currency': currency,
             'category': 'Other',
-            'description': text[:100],
+            'description': self._sanitize_description(text)[:50] or 'Purchase',
             'amount_ils': amount_ils
         }
     
