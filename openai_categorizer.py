@@ -140,7 +140,7 @@ Return ONLY JSON, no additional text.
 """
             
             response = self.client.chat.completions.create(
-                model="gpt-4o",  # Используем gpt-4o пока gpt-5 не доступен в вашей версии API
+                model="gpt-5o",
                 messages=[
                     {"role": "system", "content": "You are a financial transaction analysis assistant. Respond only in JSON format."},
                     {"role": "user", "content": prompt}
@@ -259,7 +259,7 @@ Return ONLY JSON, no additional text.
                 f"Input: {description}\nOutput:"
             )
             resp = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5o",
                 messages=[
                     {"role": "system", "content": "You condense to 1-3 English words. No numbers, no currency, no verbs."},
                     {"role": "user", "content": prompt},
