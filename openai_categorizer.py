@@ -170,6 +170,8 @@ Return ONLY JSON, no markdown, no extra text.
         """
         Базовый парсинг без OpenAI (на случай ошибки)
         """
+        print(f"[FALLBACK] Using fallback parser for: {text}")
+        
         # Ищем числа в тексте
         numbers = re.findall(r'\d+(?:\.\d+)?', text)
         amount = float(numbers[0]) if numbers else 0
@@ -189,6 +191,12 @@ Return ONLY JSON, no markdown, no extra text.
         elif '£' in text or 'gbp' in text.lower() or 'pound' in text.lower():
             currency = 'GBP'
         
+        # Убираем число из описания
+        description = re.sub(r'\d+(?:\.\d+)?', '', text).strip()
+        description = re.sub(r'[₪$€£₽]', '', description).strip()
+        # Первое слово как описание
+        description = description.split()[0] if description else text[:20]
+        
         amount_ils = self.convert_to_ils(amount, currency)
         
         return {
@@ -196,7 +204,7 @@ Return ONLY JSON, no markdown, no extra text.
             'amount': amount,
             'currency': currency,
             'category': 'Other',
-            'description': text[:100],
+            'description': description,
             'amount_ils': amount_ils
         }
     
