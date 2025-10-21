@@ -16,30 +16,35 @@ class TransactionCategorizer:
         """
         self.client = OpenAI(api_key=api_key)
         
-        # Предопределенные категории
+        # Предопределенные категории (based on user's GoldenSet)
         self.categories = {
             'Expense': [
-                'Groceries',
+                'Grocery',
+                'Grocery/delivery',
+                'Restaurant',
+                'Food delivery',
                 'Transport',
-                'Housing',
-                'Utilities',
-                'Communication',
-                'Health & Medical',
-                'Clothing',
-                'Entertainment',
-                'Restaurants & Cafes',
-                'Education',
-                'Gifts',
-                'Sports & Fitness',
+                'Health',
+                'Subscription Health',
+                'Subcription Enternainment',
+                'Subscription Work',
                 'Beauty',
+                'Clothing',
+                'Home Supply',
+                'Work Supply',
+                'Alcohol',
+                'Books',
+                'Misha Education',
+                'Entertainment',
+                'Charity',
+                'Flower',
                 'Other'
             ],
             'Income': [
                 'Salary',
                 'Freelance',
-                'Side Job',
+                'Bonus',
                 'Investment',
-                'Debt Return',
                 'Gift',
                 'Other'
             ]
@@ -67,39 +72,38 @@ class TransactionCategorizer:
         try:
             # Формируем промпт для OpenAI
             prompt = f"""
-You are a financial tracking assistant. Analyze the following transaction message and extract information.
+You are a financial tracking assistant. Analyze the transaction message and extract information.
 
 Message: "{text}"
 
-Return result STRICTLY in JSON format with the following fields:
+Return STRICTLY in JSON format with these fields:
 - type: "Expense" or "Income"
-- amount: numeric value (number only, without currency symbol)
-- currency: currency code (ILS, USD, EUR, RUB, GBP, etc.) - determine from context or default to ILS
-- category: one of the categories below
-- description: BRIEF description in ENGLISH (2-3 words max, just the essence - what was bought/earned, NOT the full original message)
+- amount: numeric value only (no currency symbol)
+- currency: ILS, USD, EUR, RUB, GBP (default: ILS)
+- category: pick ONE from the list below
+- description: Brief English description (1-3 words, item/service only, NO amount, NO verbs)
 
 Expense categories: {', '.join(self.categories['Expense'])}
 Income categories: {', '.join(self.categories['Income'])}
 
-IMPORTANT for description:
-- Keep it SHORT (2-3 words maximum)
-- Always in ENGLISH (translate if needed)
-- Just the ESSENCE - what item/service, NOT the amount, NOT the full sentence
-- Examples: "Coffee" not "Bought coffee for 200", "Groceries" not "Spent on groceries", "Taxi ride" not "Потратил на такси"
+REAL EXAMPLES from user's data:
+- "25 кофе" -> {{"type": "Expense", "amount": 25, "currency": "ILS", "category": "Restaurant", "description": "Coffee"}}
+- "такси 70" -> {{"type": "Expense", "amount": 70, "currency": "ILS", "category": "Transport", "description": "Taxi"}}
+- "70 лимонады" -> {{"type": "Expense", "amount": 70, "currency": "ILS", "category": "Restaurant", "description": "Limonades"}}
+- "55 кофе зерна" -> {{"type": "Expense", "amount": 55, "currency": "ILS", "category": "Grocery", "description": "Coffee"}}
+- "185 супермаркет" -> {{"type": "Expense", "amount": 185, "currency": "ILS", "category": "Grocery", "description": "Supermarker"}}
+- "79 вино" -> {{"type": "Expense", "amount": 79, "currency": "ILS", "category": "Alcohol", "description": "Vine"}}
+- "350 массаж" -> {{"type": "Expense", "amount": 350, "currency": "ILS", "category": "Health", "description": "Massage"}}
+- "6000 руб терапия" -> {{"type": "Expense", "amount": 6000, "currency": "RUB", "category": "Health", "description": "Phycotherapy"}}
+- "Цветы 60" -> {{"type": "Expense", "amount": 60, "currency": "ILS", "category": "Flower", "description": "Flower"}}
+- "+60302 зарплата и бонус" -> {{"type": "Income", "amount": 60302, "currency": "ILS", "category": "Salary", "description": "Salary + Half a year bonus"}}
 
-If amount is not explicitly stated, try to find it in the text. If you can't determine - set 0.
-If transaction type is not explicit, determine from context (default - Expense).
-Detect currency from symbols (₪/$//€/£/руб) or words (shekel/dollar/euro/ruble), default to ILS if not specified.
+RULES:
+- Currency detection: руб/рублей->RUB, $->USD, €->EUR, ₪/шекель->ILS, default->ILS
+- Categories: use EXACT names from the list
+- Description: translate to English, 1-3 words, essence only
 
-Examples:
-- "Кофе 21" -> {{"type": "Expense", "amount": 21, "currency": "ILS", "category": "Restaurants & Cafes", "description": "Coffee"}}
-- "Купил хлеб за 100 рублей" -> {{"type": "Expense", "amount": 100, "currency": "RUB", "category": "Groceries", "description": "Bread"}}
-- "Потратил 300 на кофе" -> {{"type": "Expense", "amount": 300, "currency": "RUB", "category": "Restaurants & Cafes", "description": "Coffee"}}
-- "Spent 50$ on taxi" -> {{"type": "Expense", "amount": 50, "currency": "USD", "category": "Transport", "description": "Taxi"}}
-- "Такси 70" -> {{"type": "Expense", "amount": 70, "currency": "ILS", "category": "Transport", "description": "Taxi"}}
-- "Got salary 5000₪" -> {{"type": "Income", "amount": 5000, "currency": "ILS", "category": "Salary", "description": "Salary"}}
-
-Return ONLY JSON, no additional text.
+Return ONLY JSON, no markdown, no extra text.
 """
             
             response = self.client.chat.completions.create(
