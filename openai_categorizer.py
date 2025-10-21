@@ -103,7 +103,7 @@ Return ONLY JSON, no additional text.
 """
             
             response = self.client.chat.completions.create(
-                model="gpt-5o",
+                model="gpt-5",
                 messages=[
                     {"role": "system", "content": "You are a financial transaction analysis assistant. Respond only in JSON format."},
                     {"role": "user", "content": prompt}
@@ -114,6 +114,7 @@ Return ONLY JSON, no additional text.
             
             # Извлекаем ответ
             result_text = response.choices[0].message.content.strip()
+            print(f"[DEBUG] GPT Raw Response: {result_text}")
             
             # Убираем markdown форматирование если есть
             result_text = re.sub(r'```json\s*', '', result_text)
@@ -121,6 +122,7 @@ Return ONLY JSON, no additional text.
             
             # Парсим JSON
             result = json.loads(result_text)
+            print(f"[DEBUG] Parsed result: {result}")
             
             # Валидация результата
             if 'type' not in result or result['type'] not in ['Expense', 'Income']:
