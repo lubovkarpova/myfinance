@@ -92,24 +92,24 @@ If transaction type is not explicit, determine from context (default - Expense).
 Detect currency from symbols (₪/$//€/£/руб) or words (shekel/dollar/euro/ruble), default to ILS if not specified.
 
 Examples:
+- "Кофе 21" -> {{"type": "Expense", "amount": 21, "currency": "ILS", "category": "Restaurants & Cafes", "description": "Coffee"}}
 - "Купил хлеб за 100 рублей" -> {{"type": "Expense", "amount": 100, "currency": "RUB", "category": "Groceries", "description": "Bread"}}
 - "Потратил 300 на кофе" -> {{"type": "Expense", "amount": 300, "currency": "RUB", "category": "Restaurants & Cafes", "description": "Coffee"}}
 - "Spent 50$ on taxi" -> {{"type": "Expense", "amount": 50, "currency": "USD", "category": "Transport", "description": "Taxi"}}
+- "Такси 70" -> {{"type": "Expense", "amount": 70, "currency": "ILS", "category": "Transport", "description": "Taxi"}}
 - "Got salary 5000₪" -> {{"type": "Income", "amount": 5000, "currency": "ILS", "category": "Salary", "description": "Salary"}}
-- "+200 freelance" -> {{"type": "Income", "amount": 200, "currency": "ILS", "category": "Freelance", "description": "Freelance"}}
-- "Купил продукты в магазине 1500р" -> {{"type": "Expense", "amount": 1500, "currency": "RUB", "category": "Groceries", "description": "Groceries"}}
 
 Return ONLY JSON, no additional text.
 """
             
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are a financial transaction analysis assistant. Respond only in JSON format."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                max_tokens=500
+                temperature=0.1,
+                max_tokens=150
             )
             
             # Извлекаем ответ
