@@ -75,23 +75,35 @@ class GoogleSheetsManager:
         """Создает заголовки в таблице, если их нет"""
         try:
             first_row = self.worksheet.row_values(1)
+            
+            # Если таблица пустая - создаем все заголовки
             if not first_row or len(first_row) == 0:
                 headers = [
-                    'Date',
+                    'Date ',
                     'Type',
                     'Description',
                     'Category',
-                    'Amount',
-                    'Currency',
+                    'Amount ',
+                    '',
                     'Amount in ILS',
-                    'User'
+                    'User ',
+                    'input',
+                    'Subscription '
                 ]
-                self.worksheet.update('A1:H1', [headers])
+                self.worksheet.update('A1:J1', [headers])
                 # Форматируем заголовки
-                self.worksheet.format('A1:H1', {
+                self.worksheet.format('A1:J1', {
                     'textFormat': {'bold': True},
                     'backgroundColor': {'red': 0.9, 'green': 0.9, 'blue': 0.9}
                 })
+                print("[INFO] Headers created with 'input' column")
+            
+            # Проверяем, есть ли колонка 'input'
+            elif len(first_row) < 9 or first_row[8] != 'input':
+                print(f"[WARNING] Table has {len(first_row)} columns, expected 9")
+                print(f"[WARNING] Current headers: {first_row}")
+                print("[INFO] Please add 'input' column manually or recreate the table")
+                
         except Exception as e:
             print(f"Ошибка при создании заголовков: {e}")
     
@@ -118,10 +130,16 @@ class GoogleSheetsManager:
                 transaction_data.get('description', ''),
                 transaction_data.get('category', ''),
                 transaction_data.get('amount', ''),  # Число
-                transaction_data.get('currency', ''),
+                '',  # Пустая колонка 6
                 transaction_data.get('amount_ils', ''),  # Число
-                transaction_data.get('username', '')
+                transaction_data.get('username', ''),
+                transaction_data.get('input', ''),  # Оригинальный текст
+                ''  # Пустая колонка 10 (Subscription)
             ]
+            
+            # Логируем для отладки
+            print(f"[DEBUG] Adding row: {row}")
+            print(f"[DEBUG] Input value: '{transaction_data.get('input', 'EMPTY')}'")
             
             # Используем value_input_option='RAW' чтобы данные записывались как есть, без интерпретации
             self.worksheet.append_row(row, value_input_option='RAW')
@@ -148,9 +166,11 @@ class GoogleSheetsManager:
                     transaction.get('description', ''),
                     transaction.get('category', ''),
                     transaction.get('amount', ''),  # Число
-                    transaction.get('currency', ''),
+                    '',  # Пустая колонка 6
                     transaction.get('amount_ils', ''),  # Число
-                    transaction.get('username', '')
+                    transaction.get('username', ''),
+                    transaction.get('input', ''),  # Оригинальный текст
+                    ''  # Пустая колонка 10 (Subscription)
                 ]
                 rows.append(row)
             

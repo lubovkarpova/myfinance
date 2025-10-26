@@ -15,6 +15,7 @@ from telegram.ext import (
 import config
 from google_sheets import GoogleSheetsManager
 from openai_categorizer import TransactionCategorizer
+from prompt_trainer import PromptTrainer
 
 # Настройка логирования
 logging.basicConfig(
@@ -23,9 +24,76 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Глобальные объекты
+    # Глобальные объекты
 sheets_manager = None
 categorizer = None
+trainer = None
+
+
+async def train_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда для ручного запуска обучения"""
+    if not trainer:
+        await update.message.reply_text("❌ Trainer not initialized.")
+        return
+    
+    await update.message.reply_text("🔄 Training in progress...")
+    
+    success = trainer.update_categorizer_prompt()
+    
+    if success:
+        stats = trainer.get_stats()
+        message = f"✅ Training completed!\n\n"
+        message += f"📊 Examples loaded: {stats['training_examples_count']}\n"
+        message += f"📅 Last trained: {stats['last_training_date'] or 'Never'}"
+        await update.message.reply_text(message)
+    else:
+        await update.message.reply_text("❌ Training failed. Check logs.")
+
+
+async def training_stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает статистику обучения"""
+    if not trainer:
+        await update.message.reply_text("❌ Trainer not initialized.")
+        return
+    
+    stats = trainer.get_stats()
+    
+    message = "📊 Training Stats:\n\n"
+    message += f"Examples: {stats['training_examples_count']}\n"
+    message += f"Last trained: {stats['last_training_date'] or 'Never'}\n"
+    message += f"Need retrain: {'Yes' if stats['should_retrain'] else 'No'}"
+    
+    await update.message.reply_text(message)
+
+
+def setup_job_queue(app):
+    """Настройка периодических задач"""
+    from datetime import time
+    
+    async def weekly_training(context):
+        """Выполняется каждую неделю в понедельник"""
+        global trainer
+        if trainer:
+            logger.info("Running weekly training...")
+            if trainer.should_retrain():
+                success = trainer.update_categorizer_prompt()
+                if success:
+                    logger.info("Weekly training completed successfully")
+                else:
+                    logger.warning("Weekly training failed")
+    
+    # Запускаем задачу каждый понедельник в 9:00
+    job_queue = app.job_queue
+    
+    if job_queue:
+        # Запускаем каждый понедельник в 9:00
+        job_queue.run_daily(
+            weekly_training,
+            time=time(9, 0),
+            days=(0,),  # 0 = Monday
+            name="weekly_training"
+        )
+        logger.info("Weekly training scheduled for Mondays at 9:00 AM")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -150,7 +218,8 @@ async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'amount': parsed['amount'],
                 'currency': parsed.get('currency', 'ILS'),
                 'amount_ils': parsed.get('amount_ils', parsed['amount']),
-                'username': user.first_name or user.username or 'Unknown'
+                'username': user.first_name or user.username or 'Unknown',
+                'input': text  # Сохраняем оригинальный текст для обучения
             }
             
             transactions.append(transaction)
@@ -188,8 +257,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'amount': parsed['amount'],
             'currency': parsed.get('currency', 'ILS'),
             'amount_ils': parsed.get('amount_ils', parsed['amount']),
-            'username': user.first_name or user.username or 'Unknown'
+            'username': user.first_name or user.username or 'Unknown',
+            'input': text  # Сохраняем оригинальный текст для обучения
         }
+        
+        # Логируем для отладки
+        logger.info(f"[DEBUG] Transaction data: {transaction}")
+        logger.info(f"[DEBUG] Input text: '{text}'")
         
         # Сразу добавляем в Google Sheets
         if sheets_manager.add_transaction(transaction):
@@ -214,7 +288,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     """Запуск бота"""
-    global sheets_manager, categorizer
+    global sheets_manager, categorizer, trainer
     
     # Проверка конфигурации
     config_errors = config.validate_config()
@@ -242,6 +316,16 @@ def main():
     categorizer = TransactionCategorizer(config.OPENAI_API_KEY)
     logger.info("✅ OpenAI готов")
     
+    # Инициализация Prompt Trainer
+    logger.info("Инициализация Prompt Trainer...")
+    trainer = PromptTrainer(categorizer, sheets_manager)
+    # Подключаем trainer к categorizer
+    categorizer.trainer = trainer
+    
+    # Загружаем примеры для обучения
+    trainer.update_categorizer_prompt()
+    logger.info("✅ Prompt Trainer готов")
+    
     # Создание приложения
     application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
     
@@ -249,6 +333,8 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("table", table_command))
+    application.add_handler(CommandHandler("train", train_command))
+    application.add_handler(CommandHandler("training_stats", training_stats_command))
     # Оставляем старые команды для обратной совместимости
     application.add_handler(CommandHandler("process", process_command))
     application.add_handler(CommandHandler("clear", clear_command))
@@ -259,6 +345,9 @@ def main():
     
     # Обработчик ошибок
     application.add_error_handler(error_handler)
+    
+    # Настройка периодических задач
+    setup_job_queue(application)
     
     # Запуск бота
     logger.info("🚀 Бот запущен!")
