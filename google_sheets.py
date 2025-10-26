@@ -84,7 +84,7 @@ class GoogleSheetsManager:
                     'Description',
                     'Category',
                     'Amount ',
-                    '',
+                    'Currency',
                     'Amount in ILS',
                     'User ',
                     'input',
