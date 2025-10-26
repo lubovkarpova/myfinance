@@ -130,7 +130,7 @@ class GoogleSheetsManager:
                 transaction_data.get('description', ''),
                 transaction_data.get('category', ''),
                 transaction_data.get('amount', ''),  # Число
-                '',  # Пустая колонка 6
+                transaction_data.get('currency', ''),  # Валюта
                 transaction_data.get('amount_ils', ''),  # Число
                 transaction_data.get('username', ''),
                 transaction_data.get('input', ''),  # Оригинальный текст
@@ -166,7 +166,7 @@ class GoogleSheetsManager:
                     transaction.get('description', ''),
                     transaction.get('category', ''),
                     transaction.get('amount', ''),  # Число
-                    '',  # Пустая колонка 6
+                    transaction.get('currency', ''),  # Валюта
                     transaction.get('amount_ils', ''),  # Число
                     transaction.get('username', ''),
                     transaction.get('input', ''),  # Оригинальный текст
