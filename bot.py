@@ -30,6 +30,36 @@ categorizer = None
 trainer = None
 
 
+def _parse_subscription(text):
+    """
+    Парсит информацию о подписке из текста
+    
+    Args:
+        text: текст транзакции
+        
+    Returns:
+        str: "Yes" если подписка без номера, номер если есть, "" если не подписка
+    """
+    import re
+    
+    text_lower = text.lower()
+    
+    # Проверяем, есть ли слово "подписка"
+    if 'подписка' not in text_lower:
+        return ''
+    
+    # Ищем цифру после слова "подписка"
+    # Примеры: "подписка 1", "подписка 2", "подписка3"
+    match = re.search(r'подписка[^0-9]*([0-9]+)', text_lower)
+    
+    if match:
+        # Нашли цифру - возвращаем её
+        return match.group(1)
+    else:
+        # Подписка без номера - возвращаем "Yes"
+        return 'Yes'
+
+
 async def train_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда для ручного запуска обучения"""
     if not trainer:
@@ -209,6 +239,9 @@ async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Используем OpenAI для категоризации
             parsed = categorizer.parse_transaction(text)
             
+            # Определяем информацию о подписке
+            subscription_info = _parse_subscription(text)
+            
             # Формируем данные транзакции
             transaction = {
                 'date': timestamp.strftime('%d-%m-%y'),  # Используем дефисы вместо слэшей
@@ -219,7 +252,8 @@ async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'currency': parsed.get('currency', 'ILS'),
                 'amount_ils': parsed.get('amount_ils', parsed['amount']),
                 'username': user.first_name or user.username or 'Unknown',
-                'input': text  # Сохраняем оригинальный текст для обучения
+                'input': text,  # Сохраняем оригинальный текст для обучения
+                'subscription': subscription_info  # Информация о подписке
             }
             
             transactions.append(transaction)
@@ -248,6 +282,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Сразу обрабатываем через OpenAI
         parsed = categorizer.parse_transaction(text)
         
+        # Определяем информацию о подписке
+        subscription_info = _parse_subscription(text)
+        
         # Формируем данные транзакции
         transaction = {
             'date': datetime.now().strftime('%d-%m-%y'),
@@ -258,12 +295,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'currency': parsed.get('currency', 'ILS'),
             'amount_ils': parsed.get('amount_ils', parsed['amount']),
             'username': user.first_name or user.username or 'Unknown',
-            'input': text  # Сохраняем оригинальный текст для обучения
+            'input': text,  # Сохраняем оригинальный текст для обучения
+            'subscription': subscription_info  # Информация о подписке
         }
         
         # Логируем для отладки
         logger.info(f"[DEBUG] Transaction data: {transaction}")
         logger.info(f"[DEBUG] Input text: '{text}'")
+        logger.info(f"[DEBUG] Subscription info: '{subscription_info}'")
         
         # Сразу добавляем в Google Sheets
         if sheets_manager.add_transaction(transaction):

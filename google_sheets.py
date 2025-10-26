@@ -134,7 +134,7 @@ class GoogleSheetsManager:
                 transaction_data.get('amount_ils', ''),  # Число
                 transaction_data.get('username', ''),
                 transaction_data.get('input', ''),  # Оригинальный текст
-                ''  # Пустая колонка 10 (Subscription)
+                transaction_data.get('subscription', '')  # Информация о подписке
             ]
             
             # Логируем для отладки
@@ -170,7 +170,7 @@ class GoogleSheetsManager:
                     transaction.get('amount_ils', ''),  # Число
                     transaction.get('username', ''),
                     transaction.get('input', ''),  # Оригинальный текст
-                    ''  # Пустая колонка 10 (Subscription)
+                    transaction.get('subscription', '')  # Информация о подписке
                 ]
                 rows.append(row)
             
