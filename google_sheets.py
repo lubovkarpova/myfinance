@@ -88,11 +88,12 @@ class GoogleSheetsManager:
                     'Amount in ILS',
                     'User ',
                     'input',
-                    'Subscription '
+                    'Subscription ',
+                    'Corrected'
                 ]
-                self.worksheet.update('A1:J1', [headers])
+                self.worksheet.update('A1:K1', [headers])
                 # Форматируем заголовки
-                self.worksheet.format('A1:J1', {
+                self.worksheet.format('A1:K1', {
                     'textFormat': {'bold': True},
                     'backgroundColor': {'red': 0.9, 'green': 0.9, 'blue': 0.9}
                 })
@@ -134,7 +135,8 @@ class GoogleSheetsManager:
                 transaction_data.get('amount_ils', ''),  # Число
                 transaction_data.get('username', ''),
                 transaction_data.get('input', ''),  # Оригинальный текст
-                transaction_data.get('subscription', '')  # Информация о подписке
+                transaction_data.get('subscription', ''),  # Информация о подписке
+                transaction_data.get('corrected', '')  # Отметка об исправлении
             ]
             
             # Логируем для отладки
@@ -170,7 +172,8 @@ class GoogleSheetsManager:
                     transaction.get('amount_ils', ''),  # Число
                     transaction.get('username', ''),
                     transaction.get('input', ''),  # Оригинальный текст
-                    transaction.get('subscription', '')  # Информация о подписке
+                    transaction.get('subscription', ''),  # Информация о подписке
+                    transaction.get('corrected', '')  # Отметка об исправлении
                 ]
                 rows.append(row)
             

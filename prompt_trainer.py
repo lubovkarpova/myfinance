@@ -53,11 +53,13 @@ class PromptTrainer:
                     'category': row.get('Category', ''),
                     'description': row.get('Description', ''),
                     'amount': row.get('Amount', ''),
-                    'currency': row.get('Currency', 'ILS')
+                    'currency': row.get('Currency', 'ILS'),
+                    'corrected': row.get('Corrected', '')
                 }
                 
-                # Добавляем только если есть все необходимые поля
-                if training_example['input'] and training_example['category']:
+                # Добавляем только если есть все необходимые поля И категория была исправлена
+                if (training_example['input'] and training_example['category'] and 
+                    training_example['corrected'].lower() in ['yes', 'true', '1', '✓', 'v']):
                     training_data.append(training_example)
                     
                     if len(training_data) >= limit:
