@@ -57,9 +57,8 @@ class PromptTrainer:
                     'corrected': row.get('Corrected', '')
                 }
                 
-                # Добавляем только если есть все необходимые поля И категория была исправлена
-                if (training_example['input'] and training_example['category'] and 
-                    training_example['corrected'].lower() in ['yes', 'true', '1', '✓', 'v']):
+                # Добавляем только если есть все необходимые поля
+                if training_example['input'] and training_example['category']:
                     training_data.append(training_example)
                     
                     if len(training_data) >= limit:
@@ -90,9 +89,27 @@ class PromptTrainer:
             return ""
         
         examples = []
-        # Берем последние 15 примеров (самые свежие)
-        recent_examples = training_data[-15:] if len(training_data) > 15 else training_data
-        for i, example in enumerate(recent_examples, 1):
+        
+        # Разделяем на исправленные и обычные
+        corrected_examples = [ex for ex in training_data if ex.get('corrected', '').lower() in ['yes', 'true', '1', '✓', 'v']]
+        regular_examples = [ex for ex in training_data if ex.get('corrected', '').lower() not in ['yes', 'true', '1', '✓', 'v']]
+        
+        # Приоритет: сначала исправленные, потом обычные
+        # Берем последние исправленные + остальное из обычных до 15
+        selected_examples = []
+        
+        # Добавляем последние исправленные (максимум 10)
+        selected_examples.extend(corrected_examples[-10:])
+        
+        # Добавляем обычные до общего лимита 15
+        remaining_slots = 15 - len(selected_examples)
+        if remaining_slots > 0:
+            selected_examples.extend(regular_examples[-remaining_slots:])
+        
+        # Берем последние 15 из выбранных
+        final_examples = selected_examples[-15:] if len(selected_examples) > 15 else selected_examples
+        
+        for i, example in enumerate(final_examples, 1):
             input_text = example['input']
             category = example['category']
             description = example.get('description', input_text.split()[0])
