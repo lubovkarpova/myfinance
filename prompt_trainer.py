@@ -88,7 +88,9 @@ class PromptTrainer:
             return ""
         
         examples = []
-        for i, example in enumerate(training_data[:15], 1):  # Максимум 15 примеров
+        # Берем последние 15 примеров (самые свежие)
+        recent_examples = training_data[-15:] if len(training_data) > 15 else training_data
+        for i, example in enumerate(recent_examples, 1):
             input_text = example['input']
             category = example['category']
             description = example.get('description', input_text.split()[0])
